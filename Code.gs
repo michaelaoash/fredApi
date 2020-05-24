@@ -10,9 +10,8 @@ To use it, you'll need:
 2. A google sheet, where the sheet names are the data series you wish to
    pull (e.g. "CIVPART" for the civilian labor force participation rate)
 3. When your sheets are labeled, click the "Tools" menu. Select "Script editor"
-4. Paste the code below into the script editor window, updating the FRED API key in line 19 with the key you registered in step 1
-5. From the drop down menu above the editor window, select "myFunction"
-6. Click the play button to run
+4. Paste the code below into the script editor window, updating the FRED API key below with the key you registered in step 1
+5. From the newly created FRED menu item in the spreadsheet, slect "Get FRED data" 
 
 // Added
 Gets series metadata
@@ -23,7 +22,7 @@ Read list of desired series and parameters from spreadsheet
 Permit join series by date
 ********************************/
 
-// Add FRED menu to launch data retrieval
+// Add FRED menu item to spreadsheet which enables launch data retrieval
 function onOpen() {
   var spreadsheet = SpreadsheetApp.getActive();
   var menuItems = [
