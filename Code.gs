@@ -1,0 +1,125 @@
+/********************************
+Forked from https://github.com/timsternation/fredApi/
+
+This script is designed to pull data from the FRED API. 
+Documentation for the FRED API: https://fred.stlouisfed.org/docs/api/fred/
+
+To use it, you'll need:
+
+1. A free FRED API key available from https://research.stlouisfed.org/docs/api/api_key.html
+2. A google sheet, where the sheet names are the data series you wish to
+   pull (e.g. "CIVPART" for the civilian labor force participation rate)
+3. When your sheets are labeled, click the "Tools" menu. Select "Script editor"
+4. Paste the code below into the script editor window, updating the FRED API key in line 19 with the key you registered in step 1
+5. From the drop down menu above the editor window, select "myFunction"
+6. Click the play button to run
+
+// Added
+Gets series metadata
+Can include series parameters set by hand
+
+// To do
+Read list of desired series and parameters from spreadsheet
+Permit join series by date
+********************************/
+
+// Add FRED menu to launch data retrieval
+function onOpen() {
+  var spreadsheet = SpreadsheetApp.getActive();
+  var menuItems = [
+    {name: 'Get FRED Data', functionName: 'myFunction'},
+  ];
+  spreadsheet.addMenu('FRED', menuItems);
+}
+
+// The following defines a "global" variable for the FRED API Key.
+PropertiesService.getScriptProperties().setProperty('mykey', '2c43987fff98daa62e436c00e39f99ff');
+
+// myFunction() is the main function. It loops over the sheet names to call the getnwrite 
+// function for each sheet (i.e. series)
+ 
+function myFunction(){
+  var ss = SpreadsheetApp.getActiveSpreadsheet();  
+  var sheetNames = ss.getSheets();
+  for (var i = 0; i<sheetNames.length; ++i) {
+    var name = sheetNames[i].getName()
+    var sheet = ss.getSheetByName(name)
+    getnwrite(s = sheet, ser = name)
+  }
+}
+
+// getnrwrite() calls the fredquery functions and writes the data
+function getnwrite(s, ser) { // s = sheet
+  var cell = s.setActiveSelection("a1")
+  var ser = s.getName()
+  
+  // Test some alternative parameters; eventually these can be read from the spreadsheet.
+  // How to set them series-specific?
+  var observation_start = '1980-01-01' ;
+  var observation_end = '' ;
+  var sort_order = 'asc' ;  // try 'desc'
+  var units = '' ;
+  var frequency = '' ;
+  var aggregation_method = '' ;
+  
+  var meta = fredQueryMeta(series = ser) ;
+  var data = fredQueryData(series = ser, observation_start, observation_end, sort_order, units, frequency, aggregation_method) ;
+  s.clear() // delete old data, because BLS sometimes revises old estimates or sheetnames may have changed.
+    
+  var array = []
+  // write four header rows
+  array[0] = (['Title' , meta.seriess[0]["title"]]) ;
+  array[1] = (['Units/Seasonality' , meta.seriess[0]["units"] + ' / ' + meta.seriess[0]["seasonal_adjustment_short"]]) ; 
+  array[2] = (['Availability' , meta.seriess[0]["frequency"] + ' / ' + meta.seriess[0]["observation_start"] + ' to ' + meta.seriess[0]["observation_end"]]) ; 
+  array[3] = (["Date", ser]);   
+  // this for-loop creates an array of the data
+  for (var i = 0; i < data.observations.length; i++) {
+    array[i+4] = ([data.observations[i]["date"],
+                   data.observations[i]["value"]])
+  }
+  
+  //write array to sheet
+  var num = array.length.toString()
+  var r = s.getRange('a1:b'+num)
+  s.setActiveRange(r)
+  r.setValues(array)
+  Logger.log(ser+' written')
+  
+}
+
+// Construct, send query to FRED API for metadata on series
+function fredQueryMeta(series)  {
+ var url =  'https://api.stlouisfed.org/fred/series?'
+ + 'series_id=' + series
+ + '&api_key=' + PropertiesService.getScriptProperties().getProperty('mykey')
+ + '&file_type=json'
+  ;
+  var response = UrlFetchApp.fetch(url, {'muteHttpExceptions': true});
+  var json = response.getContentText();
+  var meta = JSON.parse(json);
+  Logger.log(series + ' ' + url + " metadata fetched");  
+  return meta ;  
+}
+
+
+// Construct, send query to FRED API for a data series
+function fredQueryData(series, observation_start, observation_end, sort_order, units, frequency, aggregation_method) {
+  
+  var url = 'https://api.stlouisfed.org/fred/series/observations?'
+  + 'series_id=' + series
+  + '&observation_start=' + observation_start 
+  + '&observation_end=' + observation_end 
+  + '&sort_order=' + sort_order 
+  + '&units=' + units 
+  + '&frequency=' + frequency 
+  + '&aggregation_method=' + aggregation_method
+  + '&api_key=' + PropertiesService.getScriptProperties().getProperty('mykey')
+  + '&file_type=json'
+  ;
+  var response = UrlFetchApp.fetch(url, {'muteHttpExceptions': true});
+  // Logger.log(response);
+  var json = response.getContentText();
+  var data = JSON.parse(json);
+  Logger.log(series + ' ' + url + " data fetched");  
+  return data;  
+}
